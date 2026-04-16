@@ -58,7 +58,7 @@ npm run build
 例如：
 
 ```ts
-const API_URL = "https://your-render-service.onrender.com/translate";
+const API_URL = "https://vn-translator-api.onrender.com/translate";
 ```
 
 ## 关键文件
