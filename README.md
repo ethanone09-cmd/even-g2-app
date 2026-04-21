@@ -1,100 +1,166 @@
-# even-g2-app
+# Even G2 中越实时翻译 HUD MVP
 
-一个用于 Even G2 / Even Hub 场景的中越翻译前端插件项目。  
-这个项目负责采集输入文本、调用 Render 上部署的翻译 API，并把翻译结果返回到前端显示流程中。
+一个基于 Even Hub / Even G2 的中越实时翻译插件原型。  
+项目运行逻辑在手机 WebView 中，通过 Even Hub SDK 与 G2 眼镜桥接，实现语音采集、云端识别/翻译/生成辅助信息，并将结果以 5 行 HUD 文本实时显示在眼镜上。[file:1069][file:1068]
 
-## 功能说明
+## 项目目标
 
-当前版本已完成：
+本项目的目标是验证一个可运行的最小产品：  
+把中文语音输入转换为适合佩戴者即时阅读的越南语辅助信息，并稳定显示在 Even G2 眼镜 HUD 上。[file:1067][file:1069]
 
-- 前端项目初始化与本地运行
-- 调用 Render 部署的翻译接口
-- 将输入文本发送到后端翻译 API
-- 接收并处理翻译结果
-- 项目代码已托管到 GitHub
+最终展示内容固定为 5 行：
 
-## 项目结构
+1. 越南语翻译
+2. 中文识别结果
+3. 越南语自动回复
+4. 中文意思/解释
+5. 中文辅助发音
+
+这套结构适合“听懂对方 + 立刻得到可说出口的话 + 快速辅助开口”的使用场景。[file:1069][file:1188][file:1189]
+
+## 当前成果
+
+当前 MVP 已经完成以下能力验证：
+
+- Even Hub 插件可正常运行在手机端 WebView 中。[file:1067]
+- 可以通过 SDK 与 G2 显示层通信，创建文本容器并持续更新内容。[file:1069][file:1189]
+- 可以从眼镜/插件链路中采集音频并经 WebSocket 发往后端处理。[file:1188][file:1189]
+- 后端可完成中文语音识别、越南语翻译、自动回复生成、中文解释生成和中文辅助发音生成。[file:1112][file:1188]
+- 眼镜端已成功完整显示 5 行结果，`textContainerUpgrade` 返回成功。[file:1189][file:1190]
+
+这意味着项目已经从“概念验证”推进到“真机可演示 MVP”。[file:1189][file:1190]
+
+## 系统架构
+
+项目分为 3 层：
+
+| 层 | 位置 | 作用 |
+|---|---|---|
+| Even Hub Plugin 前端 | 手机 WebView | 页面、状态机、WebSocket、SDK 调用。[file:1069] |
+| Even G2 眼镜 | 设备端 | HUD 显示与事件桥接。[file:1069] |
+| 云端后端 | Node.js 服务 | ASR、翻译、自动回复、中文解释、辅助发音生成。[file:1112] |
+
+数据流如下：
+
+1. 前端启动并连接 EvenAppBridge。[file:1068][file:1069]
+2. 前端创建固定文本容器作为 HUD 显示区。[file:1069][file:1189]
+3. 用户开始录音，音频通过 WebSocket 发送到后端。[file:1188][file:1189]
+4. 后端完成识别与语言生成，返回 `final_result`。[file:1112][file:1188]
+5. 前端将 5 个字段拼接成多行文本，通过 `textContainerUpgrade` 更新到眼镜。[file:1069][file:1189]
+
+## HUD 显示格式
+
+当前最终 HUD 文本结构如下：
 
 ```text
-even-g2-app/
-├─ public/
-├─ src/
-│  ├─ assets/
-│  ├─ counter.ts
-│  ├─ main.ts
-│  └─ style.css
-├─ app.json
-├─ index.html
-├─ package.json
-├─ tsconfig.json
-└─ vntranslator.ehpk
+Tối nay chúng ta ăn lẩu.
+今天晚上我们吃的是火锅。
+Ngon quá, mình thích lẩu!
+今晚我们吃的是火锅。
+托伊 奈 炯 塔 安 拉乌
 ```
 
-## 安装依赖
+其中：
 
-```bash
-npm install
+- 第 1 行帮助佩戴者直接理解越南语表达。[file:1188]
+- 第 2 行保留中文识别原文，便于确认识别是否正确。[file:1188]
+- 第 3 行提供一句可以直接说出口的越南语回复。[file:1188]
+- 第 4 行给出中文意思，降低理解成本。[file:1188]
+- 第 5 行提供中文辅助发音，帮助不会越南语的人快速模仿发音。[file:1188]
+
+## 关键技术决策
+
+### 单文本容器方案
+
+Even G2 的显示系统不是传统 HTML/CSS，而是 576×288 的容器式 HUD 显示系统；文本更适合在一个固定 TextContainer 中按多行拼接，再持续更新。[file:1069]
+
+因此本项目没有采用复杂多控件布局，而是采用：
+
+- 启动时创建一个固定文本容器；[file:1069]
+- 运行中只更新容器内容；[file:1069][file:1189]
+- 用多行文本表达信息层次。[file:1069][file:1189]
+
+### 使用 `textContainerUpgrade`
+
+官方文档和工程分析都表明：高频文本更新应使用 `textContainerUpgrade`，而不是反复重建整页，否则容易闪屏并影响体验。[file:1069][file:1068]
+
+当前项目已经验证这条路线可行，最终 `upgrade result: true`，且真机已完整显示 5 行内容。[file:1189][file:1190]
+
+### 后端 5 字段输出
+
+当前后端在 `final_result` 中返回以下字段：
+
+- `recognizedText`
+- `translatedText`
+- `autoReply`
+- `meaningText`
+- `pronunciationText`
+
+这样前端只需负责渲染，不需要再做复杂推理逻辑。[file:1112][file:1188]
+
+## 已完成里程碑
+
+| 里程碑 | 状态 | 说明 |
+|---|---|---|
+| Even Hub 插件基础链路打通 | 已完成 | 插件可安装、打开并运行。[file:1067] |
+| 手机端页面 MVP | 已完成 | WebView 页面与本地逻辑联通。[file:1067] |
+| 文本容器创建 | 已完成 | HUD 文本容器可成功创建。[file:1189] |
+| 文本升级刷新 | 已完成 | `textContainerUpgrade` 成功更新内容。[file:1189] |
+| 音频流上传 | 已完成 | 录音音频可经 WebSocket 发到后端。[file:1188][file:1189] |
+| ASR + 翻译 | 已完成 | 中文识别与越南语翻译已打通。[file:1112][file:1188] |
+| 自动回复生成 | 已完成 | 可返回越南语回复建议。[file:1188] |
+| 中文解释生成 | 已完成 | 可返回中文意思。[file:1188] |
+| 中文辅助发音 | 已完成 | 可返回中文近似发音提示。[file:1188] |
+| 真机 5 行完整显示 | 已完成 | 眼镜端已完整显示最终结构。[file:1190] |
+
+## 示例返回结果
+
+后端 `final_result` 示例：
+
+```json
+{
+  "type": "final_result",
+  "recognizedText": "今天晚上我们吃的是火锅。",
+  "translatedText": "Tối nay chúng ta ăn lẩu.",
+  "autoReply": "Ngon quá, mình thích lẩu!",
+  "meaningText": "今晚我们吃的是火锅。",
+  "pronunciationText": "托伊 奈 炯 塔 安 拉乌"
+}
 ```
 
-## 本地运行
+前端收到后会将它拼接为 5 行文本并推送到 HUD。[file:1188][file:1189]
 
-```bash
-npm run dev
-```
+## 当前能力边界
 
-如果项目支持构建，也可以使用：
+当前版本是 MVP，已经能完成完整链路演示，但仍有一些边界：
 
-```bash
-npm run build
-```
+- 自动回复和辅助发音依赖模型生成，风格与长度可能波动。[file:1112]
+- 中文辅助发音目前是“汉字近似发音”，不是严格音标系统。[file:1188]
+- 长句场景下，显示效果仍需继续做长度控制与内容压缩优化。[file:1069]
+- 当前更适合演示单轮实时翻译，而非复杂多轮上下文记忆对话。[file:1069]
 
-## 后端接口
+## 下一步优化方向
 
-本项目前端会调用 Render 上部署的翻译 API。  
-后端仓库与接口服务需要先正常部署后，前端调用才会成功。
+接下来最值得推进的方向包括：
 
-请把 `src/main.ts` 中使用的接口地址改成你当前可用的 Render 服务地址。
+1. 增加长度控制策略，避免第 3～5 行过长。[file:1189]
+2. 按场景定制 prompt，例如餐厅、问路、购物、打车。[file:1112]
+3. 为 `autoReply / meaningText / pronunciationText` 增加更稳定的 fallback 规则。[file:1112]
+4. 引入历史结果缓存或翻页机制，支持查看上一条翻译。[file:1069]
+5. 在 UI 层增加更适合眼镜阅读的状态提示策略。[file:1068][file:1069]
 
-例如：
+## 适用场景
 
-```ts
-const API_URL = "https://vn-translator-api.onrender.com/translate";
-```
+这个 MVP 适合以下方向的继续开发：
 
-## 关键文件
+- 中越日常对话辅助
+- 出差 / 旅行中的即时沟通
+- 菜市场 / 餐厅 / 购物问答
+- 不会越南语但需要临时开口交流的轻量场景
 
-- `src/main.ts`：前端主逻辑，负责请求翻译接口与处理返回结果
-- `src/style.css`：页面样式
-- `app.json`：应用配置
-- `vntranslator.ehpk`：项目相关打包/插件文件
+## 总结
 
-## 开发记录
+本项目已经完成一个关键验证：  
+**Even G2 可以作为中越实时翻译辅助 HUD，稳定显示“翻译 + 回复 + 中文解释 + 中文辅助发音”的 5 行结果。**[file:1189][file:1190]
 
-当前 GitHub 已保存一个可工作的初始版本：
-
-- Initial frontend project with Render translation API
-
-这个版本可作为后续继续开发的基线版本。
-
-## 常用 Git 命令
-
-查看状态：
-
-```bash
-git status
-```
-
-提交修改：
-
-```bash
-git add .
-git commit -m "Describe your change"
-git push
-```
-
-## 后续计划
-
-- 优化翻译请求错误处理
-- 增加加载状态提示
-- 优化翻译结果显示
-- 进一步接入 Even G2 / Even Hub 实际插件流程
+这说明该方案不仅在工程上可行，而且已经具备进一步产品化打磨的基础。[file:1069][file:1190]

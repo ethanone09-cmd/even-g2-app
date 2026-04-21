@@ -1,21 +1,25 @@
 {
-  "package_id": "com.user.vntranslator",
-  "edition": "202601",
-  "name": "VN Translator",
+  "packageid": "com.ethanone09.vntranslator",
+  "edition": 202601,
+  "name": "VN Talk",
   "version": "0.1.0",
-  "min_app_version": "2.0.0",
-  "min_sdk_version": "0.0.9",
+  "minappversion": "2.0.0",
+  "minsdkversion": "0.0.9",
   "entrypoint": "index.html",
   "permissions": [
     {
       "name": "network",
-      "desc": "This app needs network access to call translation services.",
+      "desc": "Connects to the cloud translation service for realtime speech processing.",
       "whitelist": [
-        "http://192.168.1.9:5173"
+        "https://vn-translator-api.onrender.com"
       ]
+    },
+    {
+      "name": "g2-microphone",
+      "desc": "Captures voice from Even G2 for realtime Vietnamese translation."
     }
   ],
-  "supported_languages": [
+  "supportedlanguages": [
     "zh",
     "en"
   ]
